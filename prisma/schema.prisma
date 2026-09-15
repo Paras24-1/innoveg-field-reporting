@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Employee {
+  id               String   @id @default(cuid())
+  empId            String   @unique
+  name             String
+  mobileNumber     String   @unique
+  designation      String
+  district         String
+  territory        String
+  dailyVisitTarget Int
+  avatarUrl        String?
+  isActive         Boolean  @default(true)
+  joinedDate       String?
+  visits           Visit[]
+}
+
+model Visit {
+  id                 String   @id @default(cuid())
+  employeeId         String
+  employee           Employee @relation(fields: [employeeId], references: [id])
+  employeeName       String
+  employeeMobile     String
+  territory          String
+  district           String
+  visitType          String
+  entityName         String
+  village            String
+  latitude           Float
+  longitude          Float
+  locationName       String
+  photoUrl           String
+  remarksBooking     String
+  isRepeatLocation   Boolean
+  distanceFromPrevKm Float
+  
+  aiQualityScore     Float
+  aiIsBlur           Boolean
+  aiFieldVisible     Boolean
+  aiPersonVisible    Boolean
+  aiBrandingVisible  Boolean
+  aiVisitTypeMatch   Boolean
+  aiSummaryHindi     String
+  aiSummaryEnglish   String
+  aiTags             String   // Stored as JSON string
+
+  timestamp          String 
+}
+
+model BotSession {
+  mobileNumber     String   @id
+  employeeId       String?
+  currentStep      String
+  tempVisitData    String   // Stored as JSON string
+  lastActive       String
+}
