@@ -10,14 +10,14 @@ import { EmployeeLeaderboard } from '@/components/EmployeeLeaderboard';
 import { DailyReportModal } from '@/components/DailyReportModal';
 import { AiInspectionModal } from '@/components/AiInspectionModal';
 import { EmployeeDirectoryModal } from '@/components/EmployeeDirectoryModal';
-import { WhatsAppSimulator } from '@/components/WhatsAppSimulator';
+
 import {
   MapPin,
   ListFilter,
   Trophy,
   Sparkles,
   RefreshCw,
-  MessageSquare,
+
   FileText,
   Users,
   ShieldCheck,
@@ -46,7 +46,7 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<'command' | 'leaderboard' | 'map' | 'gallery'>('command');
 
   // Modals
-  const [isSimulatorOpen, setIsSimulatorOpen] = useState<boolean>(false);
+
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
   const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState<boolean>(false);
   const [inspectingVisit, setInspectingVisit] = useState<Visit | null>(null);
@@ -82,10 +82,6 @@ export default function DashboardPage() {
     fetchData();
   }, []);
 
-  const handleVisitCreated = (newVisit: Visit) => {
-    setVisits((prev) => [newVisit, ...prev]);
-    fetchData(); // re-calculate targets & summary
-  };
 
   const handleAddEmployee = async (newEmp: Partial<Employee>) => {
     try {
@@ -109,7 +105,7 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-slate-50 flex flex-col pb-12">
       {/* Top Navigation */}
       <Navbar
-        onOpenSimulator={() => setIsSimulatorOpen(true)}
+
         onOpenReport={() => setIsReportModalOpen(true)}
         onOpenEmployees={() => setIsEmployeeModalOpen(true)}
         onRefresh={fetchData}
@@ -133,13 +129,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
-            <button
-              onClick={() => setIsSimulatorOpen(true)}
-              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-bold text-emerald-900 bg-white hover:bg-emerald-50 rounded-xl shadow-md transition-all active:scale-95"
-            >
-              <MessageSquare className="w-4 h-4 text-emerald-700" />
-              <span>Launch WhatsApp Simulator</span>
-            </button>
+
 
             <button
               onClick={() => setIsReportModalOpen(true)}
@@ -331,13 +321,7 @@ export default function DashboardPage() {
       </main>
 
       {/* Modals */}
-      {isSimulatorOpen && (
-        <WhatsAppSimulator
-          employees={employees}
-          onClose={() => setIsSimulatorOpen(false)}
-          onVisitCreated={handleVisitCreated}
-        />
-      )}
+
 
       {isReportModalOpen && (
         <DailyReportModal

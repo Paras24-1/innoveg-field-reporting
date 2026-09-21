@@ -4,7 +4,7 @@ import React from 'react';
 import { Sprout, MessageSquare, BarChart3, Users, RefreshCw, FileText } from 'lucide-react';
 
 interface NavbarProps {
-  onOpenSimulator: () => void;
+
   onOpenReport: () => void;
   onOpenEmployees: () => void;
   onRefresh: () => void;
@@ -12,7 +12,7 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
-  onOpenSimulator,
+
   onOpenReport,
   onOpenEmployees,
   onRefresh,
@@ -70,14 +70,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>7 PM Report</span>
             </button>
 
-            {/* Interactive WhatsApp Simulator */}
-            <button
-              onClick={onOpenSimulator}
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 rounded-lg shadow-sm transition-all shadow-emerald-600/20"
-            >
-              <MessageSquare className="w-4 h-4" />
-              <span>WhatsApp Bot Simulator</span>
-            </button>
+
           </div>
         </div>
       </div>

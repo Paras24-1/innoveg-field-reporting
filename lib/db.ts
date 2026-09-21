@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { Employee, Visit, BotSession } from './types';
+import { Employee, Visit } from './types';
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
@@ -101,48 +101,6 @@ class DatabaseStore {
     return this.mapPrismaVisit(v) as Visit;
   }
 
-  // Session Methods
-  async getSession(mobileNumber: string): Promise<BotSession | null> {
-    const clean = mobileNumber.replace(/[\s\-\+]/g, '').slice(-10);
-    const session = await prisma.botSession.findUnique({
-      where: { mobileNumber: clean }
-    });
-    if (!session) return null;
-    return {
-      mobileNumber: session.mobileNumber,
-      employeeId: session.employeeId || undefined,
-      currentStep: session.currentStep as any,
-      tempVisitData: JSON.parse(session.tempVisitData),
-      lastActive: session.lastActive
-    };
-  }
-
-  async saveSession(session: BotSession): Promise<void> {
-    const clean = session.mobileNumber.replace(/[\s\-\+]/g, '').slice(-10);
-    await prisma.botSession.upsert({
-      where: { mobileNumber: clean },
-      update: {
-        currentStep: session.currentStep,
-        tempVisitData: JSON.stringify(session.tempVisitData),
-        employeeId: session.employeeId,
-        lastActive: session.lastActive,
-      },
-      create: {
-        mobileNumber: clean,
-        currentStep: session.currentStep,
-        tempVisitData: JSON.stringify(session.tempVisitData),
-        employeeId: session.employeeId,
-        lastActive: session.lastActive,
-      }
-    });
-  }
-
-  async clearSession(mobileNumber: string): Promise<void> {
-    const clean = mobileNumber.replace(/[\s\-\+]/g, '').slice(-10);
-    try {
-      await prisma.botSession.delete({ where: { mobileNumber: clean } });
-    } catch(e) {}
-  }
 
   private mapPrismaVisit(v: any) {
     return {

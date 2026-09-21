@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Employee {
@@ -54,10 +54,3 @@ model Visit {
   timestamp          String 
 }
 
-model BotSession {
-  mobileNumber     String   @id
-  employeeId       String?
-  currentStep      String
-  tempVisitData    String   // Stored as JSON string
-  lastActive       String
-}
