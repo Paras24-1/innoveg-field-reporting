@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
-const { INITIAL_EMPLOYEES, INITIAL_VISITS } = require('../lib/seed-data.js'); // Wait, seed-data is ts. Better to run it via ts-node.
+const { INITIAL_VISITS } = require('../lib/seed-data.js');
+const INITIAL_EMPLOYEES = require('../lib/real-employees.json');
 
 const prisma = new PrismaClient();
 
