@@ -54,3 +54,11 @@ model Visit {
   timestamp          String 
 }
 
+model BotSession {
+  mobileNumber     String   @id
+  employeeId       String?
+  currentStep      String
+  tempVisitData    String   // Stored as JSON string
+  lastActive       String
+}
+
