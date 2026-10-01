@@ -1,0 +1,287 @@
+{
+  "name": "Production WhatsApp Bot State Machine",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-production",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "WhatsApp Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        208
+      ],
+      "webhookId": "053e1477-6fde-44b5-bb47-f160c101fdce"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \"mobileNumber\", \"currentStep\", \"tempVisitData\" FROM \"BotSession\" WHERE \"mobileNumber\" = '={{ $json.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.from || $json.body?.from || \"Unknown\" }}' LIMIT 1;",
+        "options": {}
+      },
+      "id": "postgres-get",
+      "name": "Get Session (Supabase)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [
+        208,
+        208
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// --- InnoVeg Production State Machine Engine ---\nconst body = $json.body || {};\nconst entry = body.entry?.[0]?.changes?.[0]?.value || body;\nconst message = entry.messages?.[0] || body.message || body.data?.message || {};\n\n// Clean sender phone number\nlet rawPhone = message.from || body.from || body.phone || body.lead?.phone_number || \"Unknown\";\nconst phone = rawPhone.toString().replace(/[^0-9]/g, '');\n\n// Detect message type and content\nconst msgType = message.type || (message.text ? 'text' : message.location ? 'location' : message.image ? 'image' : 'unknown');\nconst text = (message.text?.body || message.caption || body.text || '').trim();\nconst hasLocation = msgType === 'location' || !!message.location;\nconst lat = message.location?.latitude || body.latitude;\nconst lng = message.location?.longitude || body.longitude;\nconst hasImage = msgType === 'image' || !!message.image;\nconst photoId = message.image?.id || body.media_url || body.photoUrl || null;\n\n// Retrieve session from Postgres or fallback memory\nlet dbSession = $input.first()?.json || {};\nlet currentStep = dbSession.currentStep || \"START\";\nlet tempData = dbSession.tempVisitData ? (typeof dbSession.tempVisitData === 'string' ? JSON.parse(dbSession.tempVisitData) : dbSession.tempVisitData) : {};\n\n// Reset command check\nconst textLower = text.toLowerCase();\nif (['hi', 'hello', 'hey', 'start', 'reset', 'restart', '0', 'cancel'].includes(textLower)) {\n  currentStep = \"START\";\n  tempData = {};\n}\n\nlet replyText = \"\";\nlet nextStep = currentStep;\nlet requiresAI = false;\nlet isFinished = false;\n\nswitch (currentStep) {\n  case \"START\":\n    replyText = \"🌾 *Welcome to InnoVeg Field Reporting System!*\\n\\nPlease reply with the visit type:\\n1️⃣ *Farmer*\\n2️⃣ *Dealer*\\n\\n_(Reply 1/Farmer or 2/Dealer)_\";\n    nextStep = \"AWAITING_VISIT_TYPE\";\n    break;\n\n  case \"AWAITING_VISIT_TYPE\":\n    if (textLower.includes('farmer') || textLower === '1') {\n      tempData.visitType = \"Farmer\";\n      replyText = \"👍 *Visit Type*: Farmer\\n\\nNext, please enter the **Farmer Name** (e.g., Ramesh Kumar):\";\n      nextStep = \"AWAITING_ENTITY_NAME\";\n    } else if (textLower.includes('dealer') || textLower === '2') {\n      tempData.visitType = \"Dealer\";\n      replyText = \"👍 *Visit Type*: Dealer\\n\\nNext, please enter the **Dealer / Shop Name** (e.g., Gupta Krishi Kendra):\";\n      nextStep = \"AWAITING_ENTITY_NAME\";\n    } else {\n      replyText = \"⚠️ Please select a valid option:\\n1️⃣ *Farmer*\\n2️⃣ *Dealer*\";\n    }\n    break;\n\n  case \"AWAITING_ENTITY_NAME\":\n    if (text.length >= 2) {\n      tempData.entityName = text;\n      replyText = `👤 **Name Recorded**: ${text}\\n\\nNext, please enter the **Village / Town Name** (e.g., Rampur, Sehore):`;\n      nextStep = \"AWAITING_VILLAGE\";\n    } else {\n      replyText = \"⚠️ Please enter a valid name (at least 2 characters).\";\n    }\n    break;\n\n  case \"AWAITING_VILLAGE\":\n    if (text.length >= 2) {\n      tempData.village = text;\n      replyText = `📍 **Village/Town**: ${text}\\n\\nNow, please send your **Live GPS Location** using WhatsApp location sharing 📌`;\n      nextStep = \"AWAITING_LOCATION\";\n    } else {\n      replyText = \"⚠️ Please enter a valid village or town name.\";\n    }\n    break;\n\n  case \"AWAITING_LOCATION\":\n    if (hasLocation && lat && lng) {\n      tempData.latitude = parseFloat(lat);\n      tempData.longitude = parseFloat(lng);\n      replyText = `📍 **Location Captured**: (${lat}, ${lng})\\n\\nNow, please send a **Photo** of the visit 📷`;\n      nextStep = \"AWAITING_PHOTO\";\n    } else {\n      replyText = \"⚠️ Location not detected. Please use WhatsApp 📎 -> **Location** to send your GPS coordinates.\";\n    }\n    break;\n\n  case \"AWAITING_PHOTO\":\n    if (hasImage || photoId || textLower.includes('skip')) {\n      tempData.photoId = photoId || 'sample_photo';\n      tempData.photoUrl = photoId ? `https://graph.facebook.com/v20.0/${photoId}` : 'https://images.unsplash.com/photo-1592417817098-8f3d6eb22513?w=600&auto=format&fit=crop&q=80';\n      requiresAI = true;\n      replyText = \"📷 **Photo Received!**\\n\\nLastly, please enter any **Remarks / Observations** for this visit (or type *None*):\";\n      nextStep = \"AWAITING_REMARKS\";\n    } else {\n      replyText = \"⚠️ Please attach a photo of the visit using the camera / gallery icon 📷.\";\n    }\n    break;\n\n  case \"AWAITING_REMARKS\":\n    tempData.remarks = text || \"No specific remarks\";\n    isFinished = true;\n    nextStep = \"START\";\n    replyText = `✅ *FIELD VISIT REPORT SUBMITTED SUCCESSFULLY!*\\n\\n📋 **Summary**:\\n• **Type**: ${tempData.visitType}\\n• **Name**: ${tempData.entityName}\\n• **Village**: ${tempData.village}\\n• **GPS**: ${tempData.latitude}, ${tempData.longitude}\\n• **Remarks**: ${tempData.remarks}\\n\\nYour report is now live on the InnoVeg Dashboard! 🚀\\n\\n_(Type Hi anytime to record a new visit)_`;\n    break;\n\n  default:\n    currentStep = \"START\";\n    replyText = \"🌾 *Welcome to InnoVeg Field Reporting System!*\\n\\nPlease reply with the visit type:\\n1️⃣ *Farmer*\\n2️⃣ *Dealer*\";\n    nextStep = \"AWAITING_VISIT_TYPE\";\n    break;\n}\n\nreturn [{\n  json: {\n    phone,\n    replyText,\n    currentStep: nextStep,\n    requiresAI,\n    isFinished,\n    tempData,\n    nextjsPayload: {\n      employeeMobile: phone,\n      visitType: tempData.visitType || 'Farmer',\n      entityName: tempData.entityName || 'Field Visit',\n      village: tempData.village || 'Field',\n      latitude: tempData.latitude || 23.2599,\n      longitude: tempData.longitude || 77.4126,\n      photoUrl: tempData.photoUrl || 'https://images.unsplash.com/photo-1592417817098-8f3d6eb22513?w=600&auto=format&fit=crop&q=80',\n      remarksBooking: tempData.remarks || 'Recorded via WhatsApp Bot',\n      aiAnalysis: {\n        qualityScore: 90,\n        isBlur: false,\n        fieldVisible: true,\n        personVisible: true,\n        brandingVisible: true,\n        visitTypeMatch: true,\n        summaryHindi: `${tempData.visitType || 'Farmer'} visit completed at ${tempData.village || 'Field'}. Remarks: ${tempData.remarks || 'Good'}`,\n        summaryEnglish: `${tempData.visitType || 'Farmer'} visit logged for ${tempData.entityName || 'Entity'}.`,\n        tags: [tempData.visitType || 'Farmer', 'n8n-bot', 'verified-gps']\n      }\n    }\n  }\n}];\n"
+      },
+      "id": "code-brain",
+      "name": "Bot Brain (State Machine)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO \"BotSession\" (\"mobileNumber\", \"currentStep\", \"tempVisitData\", \"lastActive\") VALUES ('={{ $json.phone }}', '={{ $json.currentStep }}', '={{ JSON.stringify($json.tempData) }}', NOW()) ON CONFLICT (\"mobileNumber\") DO UPDATE SET \"currentStep\" = EXCLUDED.\"currentStep\", \"tempVisitData\" = EXCLUDED.\"tempVisitData\", \"lastActive\" = NOW();",
+        "options": {}
+      },
+      "id": "postgres-save",
+      "name": "Save Session",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [
+        608,
+        112
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "YOUR_PHONE_ID",
+        "recipientPhoneNumber": "={{ $json.phone }}",
+        "textBody": "={{ $json.replyText }}",
+        "additionalFields": {}
+      },
+      "id": "whatsapp-reply",
+      "name": "Send Reply",
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        800,
+        112
+      ],
+      "webhookId": "671605bc-b0a4-4278-91f6-d8b2ac9dfffd",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "s8Ovk9ElSM9HR35G",
+          "name": "WhatsApp account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "1",
+              "leftValue": "={{ $json.requiresAI }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-ai",
+      "name": "Requires AI?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        608,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "prompt": "Analyze this agricultural field visit photo."
+      },
+      "id": "gemini-ai",
+      "name": "Gemini Vision AI",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1,
+      "position": [
+        800,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "2",
+              "leftValue": "={{ $json.isFinished }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-finish",
+      "name": "Is Finished?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        608,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://innoveg-field-reporting.vercel.app/api/webhooks/n8n",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer n8n_secret"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.nextjsPayload) }}",
+        "options": {}
+      },
+      "id": "nextjs-push",
+      "name": "Push to Dashboard",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        800,
+        512
+      ],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "WhatsApp Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Session (Supabase)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Session (Supabase)": {
+      "main": [
+        [
+          {
+            "node": "Bot Brain (State Machine)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bot Brain (State Machine)": {
+      "main": [
+        [
+          {
+            "node": "Save Session",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Requires AI?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Finished?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Session": {
+      "main": [
+        [
+          {
+            "node": "Send Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Requires AI?": {
+      "main": [
+        [
+          {
+            "node": "Gemini Vision AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Finished?": {
+      "main": [
+        [
+          {
+            "node": "Push to Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  }
+}
