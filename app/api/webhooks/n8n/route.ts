@@ -3,6 +3,8 @@ import { db } from '@/lib/db';
 import { Visit } from '@/lib/types';
 import { calculateDistanceKm, isDuplicateLocation } from '@/lib/geo';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
   try {
     const authHeader = request.headers.get('authorization');
