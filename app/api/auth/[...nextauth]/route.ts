@@ -1,7 +1,10 @@
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 
+export const dynamic = 'force-dynamic';
+
 const handler = NextAuth({
+  secret: process.env.NEXTAUTH_SECRET || 'innoveg_super_secret_jwt_key_2026',
   providers: [
     CredentialsProvider({
       name: 'Credentials',
@@ -16,8 +19,8 @@ const handler = NextAuth({
       },
     }),
   ],
-  pages: {
-    signIn: '/api/auth/signin',
+  session: {
+    strategy: 'jwt',
   },
 });
 
