@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { syncEmployeesFromGoogleSheet } from '@/lib/sheet-sync';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,6 +8,11 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const district = searchParams.get('district');
   const search = searchParams.get('search')?.toLowerCase();
+  const doSync = searchParams.get('sync');
+
+  if (doSync === 'true') {
+    await syncEmployeesFromGoogleSheet();
+  }
 
   let employees = await db.getEmployees();
 
@@ -34,21 +40,24 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    if (!body.name || !body.mobileNumber || !body.district) {
+    if (!body.name || !body.mobileNumber) {
       return NextResponse.json(
-        { success: false, error: 'Name, Mobile, and District are required' },
+        { success: false, error: 'Name and Mobile number are required' },
         { status: 400 }
       );
     }
+
+    const cleanMobile = String(body.mobileNumber).replace(/[\s\-\+]/g, '');
+    const tenDigit = cleanMobile.length > 10 ? cleanMobile.slice(-10) : cleanMobile;
 
     const newEmp = await db.addEmployee({
       id: `emp-${Date.now()}`,
       empId: body.empId || `INV-${Math.floor(100 + Math.random() * 900)}`,
       name: body.name,
-      mobileNumber: body.mobileNumber,
+      mobileNumber: tenDigit,
       designation: body.designation || 'Field Officer',
-      district: body.district,
-      territory: body.territory || `${body.district} General`,
+      district: body.district || 'Betul',
+      territory: body.territory || `${body.district || 'Betul'} Zone`,
       dailyVisitTarget: Number(body.dailyVisitTarget) || 10,
       isActive: true,
     });
