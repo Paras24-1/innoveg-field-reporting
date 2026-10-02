@@ -3,8 +3,12 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 
 export const dynamic = 'force-dynamic';
 
+if (!process.env.NEXTAUTH_SECRET) {
+  process.env.NEXTAUTH_SECRET = 'innoveg_super_secret_jwt_key_2026';
+}
+
 const handler = NextAuth({
-  secret: process.env.NEXTAUTH_SECRET || 'innoveg_super_secret_jwt_key_2026',
+  secret: process.env.NEXTAUTH_SECRET,
   providers: [
     CredentialsProvider({
       name: 'Credentials',
