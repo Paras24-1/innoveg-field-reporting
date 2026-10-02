@@ -275,46 +275,67 @@ export default function DashboardPage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {visits.map((v) => (
-                <div
-                  key={v.id}
-                  onClick={() => setInspectingVisit(v)}
-                  className="rounded-xl border border-slate-200 overflow-hidden bg-slate-50 hover:shadow-md transition-all cursor-pointer group"
-                >
-                  <div className="h-44 bg-slate-900 relative overflow-hidden">
-                    <img
-                      src={v.photoUrl}
-                      alt={v.entityName}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                    />
-                    <div className="absolute top-2 right-2 bg-slate-900/80 backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold text-white flex items-center gap-1">
-                      <Sparkles className="w-3 h-3 text-indigo-400" />
-                      {v.aiAnalysis.qualityScore}/100
-                    </div>
+              {(visits || []).map((v) => {
+                const aiScore = v.aiAnalysis?.qualityScore || 80;
+                const isBlur = Boolean(v.aiAnalysis?.isBlur);
+                const timeStr = (() => {
+                  try {
+                    const d = new Date(v.timestamp);
+                    return isNaN(d.getTime()) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                  } catch {
+                    return '';
+                  }
+                })();
 
-                    {v.aiAnalysis.isBlur && (
-                      <div className="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded">
-                        Blur Alert
+                return (
+                  <div
+                    key={v.id}
+                    onClick={() => setInspectingVisit(v)}
+                    className="rounded-xl border border-slate-200 overflow-hidden bg-slate-50 hover:shadow-md transition-all cursor-pointer group"
+                  >
+                    <div className="h-44 bg-slate-900 relative overflow-hidden">
+                      {v.photoUrl ? (
+                        <img
+                          src={v.photoUrl}
+                          alt={v.entityName || 'Visit photo'}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs">
+                          No Photo
+                        </div>
+                      )}
+                      <div className="absolute top-2 right-2 bg-slate-900/80 backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold text-white flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-indigo-400" />
+                        {aiScore}/100
                       </div>
-                    )}
-                  </div>
 
-                  <div className="p-3 text-xs space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded text-[10px]">
-                        {v.visitType}
-                      </span>
-                      <span className="text-slate-400 text-[10px]">
-                        {new Date(v.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
+                      {isBlur && (
+                        <div className="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded">
+                          Blur Alert
+                        </div>
+                      )}
                     </div>
-                    <p className="font-bold text-slate-900 truncate">{v.entityName}</p>
-                    <p className="text-slate-500 text-[11px] truncate">
-                      👤 {v.employeeName} · {v.village}
-                    </p>
+
+                    <div className="p-3 text-xs space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded text-[10px]">
+                          {v.visitType || 'Visit'}
+                        </span>
+                        {timeStr && (
+                          <span className="text-slate-400 text-[10px]">
+                            {timeStr}
+                          </span>
+                        )}
+                      </div>
+                      <p className="font-bold text-slate-900 truncate">{v.entityName || 'Field Visit'}</p>
+                      <p className="text-slate-500 text-[11px] truncate">
+                        👤 {v.employeeName || 'Officer'} · {v.village || 'Field'}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

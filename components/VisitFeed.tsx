@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Visit, VisitType } from '@/lib/types';
-import { Sparkles, MapPin, CheckCircle2, AlertCircle, Clock, Search, Filter } from 'lucide-react';
+import { Visit } from '@/lib/types';
+import { Sparkles, MapPin, Clock, Search } from 'lucide-react';
 
 interface VisitFeedProps {
   visits: Visit[];
@@ -11,21 +11,25 @@ interface VisitFeedProps {
 }
 
 export const VisitFeed: React.FC<VisitFeedProps> = ({
-  visits,
+  visits = [],
   onSelectVisit,
   onInspectPhoto,
 }) => {
   const [filterType, setFilterType] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
-  const filteredVisits = visits.filter((v) => {
+  const safeVisits = Array.isArray(visits) ? visits : [];
+
+  const filteredVisits = safeVisits.filter((v) => {
+    if (!v) return false;
     const matchesType = filterType === 'ALL' || v.visitType === filterType;
+    const searchLower = (searchTerm || '').toLowerCase();
     const matchesSearch =
-      searchTerm === '' ||
-      v.entityName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      v.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      v.village.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      v.district.toLowerCase().includes(searchTerm.toLowerCase());
+      searchLower === '' ||
+      (v.entityName || '').toLowerCase().includes(searchLower) ||
+      (v.employeeName || '').toLowerCase().includes(searchLower) ||
+      (v.village || '').toLowerCase().includes(searchLower) ||
+      (v.district || '').toLowerCase().includes(searchLower);
     return matchesType && matchesSearch;
   });
 
@@ -79,8 +83,18 @@ export const VisitFeed: React.FC<VisitFeedProps> = ({
           </div>
         ) : (
           filteredVisits.map((visit) => {
-            const isBlur = visit.aiAnalysis.isBlur;
-            const score = visit.aiAnalysis.qualityScore;
+            const ai = visit.aiAnalysis || { qualityScore: 80, isBlur: false };
+            const isBlur = Boolean(ai.isBlur);
+            const score = Number(ai.qualityScore || 80);
+
+            const timeStr = (() => {
+              try {
+                const d = new Date(visit.timestamp);
+                return isNaN(d.getTime()) ? 'Just now' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              } catch {
+                return 'Just now';
+              }
+            })();
 
             return (
               <div
@@ -93,7 +107,7 @@ export const VisitFeed: React.FC<VisitFeedProps> = ({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
-                        {visit.visitType}
+                        {visit.visitType || 'Visit'}
                       </span>
                       {visit.isRepeatLocation ? (
                         <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
@@ -106,21 +120,21 @@ export const VisitFeed: React.FC<VisitFeedProps> = ({
                       )}
                       <span className="text-[11px] text-slate-400 flex items-center gap-1">
                         <Clock className="w-3 h-3" />
-                        {new Date(visit.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {timeStr}
                       </span>
                     </div>
 
                     <h3 className="font-bold text-slate-900 text-sm truncate group-hover:text-emerald-700">
-                      {visit.entityName}
+                      {visit.entityName || 'Field Visit'}
                     </h3>
 
                     <div className="flex items-center gap-3 text-xs text-slate-600 mt-1">
                       <span className="flex items-center gap-1">
                         <MapPin className="w-3 h-3 text-slate-400" />
-                        {visit.village}, {visit.district}
+                        {visit.village || 'Field'}, {visit.district || ''}
                       </span>
                       <span className="font-medium text-slate-700">
-                        👤 {visit.employeeName}
+                        👤 {visit.employeeName || 'Officer'}
                       </span>
                     </div>
 
@@ -154,7 +168,7 @@ export const VisitFeed: React.FC<VisitFeedProps> = ({
                         </span>
                       )}
 
-                      {visit.distanceFromPrevKm > 0 && (
+                      {Number(visit.distanceFromPrevKm || 0) > 0 && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-medium">
                           +{visit.distanceFromPrevKm} KM travel
                         </span>

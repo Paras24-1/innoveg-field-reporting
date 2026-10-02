@@ -36,14 +36,20 @@ interface MapComponentProps {
   onSelectVisit?: (visit: Visit) => void;
 }
 
-// Helper to auto-fit bounds
+// Helper to auto-fit bounds with validity checks
 const AutoFitBounds: React.FC<{ visits: Visit[] }> = ({ visits }) => {
   const map = useMap();
 
   useEffect(() => {
     if (visits.length > 0) {
-      const bounds = L.latLngBounds(visits.map((v) => [v.latitude, v.longitude]));
-      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
+      try {
+        const bounds = L.latLngBounds(visits.map((v) => [v.latitude, v.longitude]));
+        if (bounds.isValid()) {
+          map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
+        }
+      } catch (err) {
+        console.warn('Invalid Leaflet bounds:', err);
+      }
     }
   }, [visits, map]);
 
@@ -51,16 +57,28 @@ const AutoFitBounds: React.FC<{ visits: Visit[] }> = ({ visits }) => {
 };
 
 export default function MapComponent({
-  visits,
+  visits = [],
   selectedEmployeeId,
   onSelectVisit,
 }: MapComponentProps) {
   // Center around Betul / Multai / Chhindwara area
   const defaultCenter: [number, number] = [21.7709, 78.2575];
 
+  // Filter out any visits with missing or invalid coordinates to prevent Leaflet crashes
+  const validVisits = (visits || []).filter(
+    (v) =>
+      v &&
+      typeof v.latitude === 'number' &&
+      typeof v.longitude === 'number' &&
+      !isNaN(v.latitude) &&
+      !isNaN(v.longitude) &&
+      v.latitude !== 0 &&
+      v.longitude !== 0
+  );
+
   // If employee selected, filter their visits in chronological order for polyline
   const employeeRouteVisits = selectedEmployeeId
-    ? visits
+    ? validVisits
         .filter((v) => v.employeeId === selectedEmployeeId)
         .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
     : [];
@@ -83,7 +101,7 @@ export default function MapComponent({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        <AutoFitBounds visits={visits} />
+        <AutoFitBounds visits={validVisits} />
 
         {/* Route Polyline when filtering by officer */}
         {routePolylinePoints.length > 1 && (
@@ -97,52 +115,64 @@ export default function MapComponent({
         )}
 
         {/* Visit Markers */}
-        {visits.map((visit) => (
-          <Marker
-            key={visit.id}
-            position={[visit.latitude, visit.longitude]}
-            icon={createCustomIcon(visit.visitType, visit.isRepeatLocation)}
-            eventHandlers={{
-              click: () => onSelectVisit && onSelectVisit(visit),
-            }}
-          >
-            <Popup className="custom-leaflet-popup">
-              <div className="p-1 max-w-[240px]">
-                <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-800">
-                    {visit.visitType}
-                  </span>
-                  {visit.isRepeatLocation && (
-                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
-                      Repeat Visit
+        {validVisits.map((visit) => {
+          const aiScore = visit.aiAnalysis?.qualityScore || 80;
+          const timeStr = (() => {
+            try {
+              const d = new Date(visit.timestamp);
+              return isNaN(d.getTime()) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } catch {
+              return '';
+            }
+          })();
+
+          return (
+            <Marker
+              key={visit.id}
+              position={[visit.latitude, visit.longitude]}
+              icon={createCustomIcon(visit.visitType || 'Farmer Visit', Boolean(visit.isRepeatLocation))}
+              eventHandlers={{
+                click: () => onSelectVisit && onSelectVisit(visit),
+              }}
+            >
+              <Popup className="custom-leaflet-popup">
+                <div className="p-1 max-w-[240px]">
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-800">
+                      {visit.visitType || 'Visit'}
                     </span>
-                  )}
-                </div>
-
-                <p className="font-bold text-slate-900 text-sm leading-snug">{visit.entityName}</p>
-                <p className="text-xs text-slate-600 mt-0.5">📍 {visit.village || visit.locationName}</p>
-                <p className="text-[11px] text-emerald-700 font-medium mt-1">
-                  👤 {visit.employeeName} ({visit.district})
-                </p>
-
-                {visit.photoUrl && (
-                  <div className="mt-2 rounded-md overflow-hidden border border-slate-200 h-24 bg-slate-100">
-                    <img
-                      src={visit.photoUrl}
-                      alt={visit.entityName}
-                      className="w-full h-full object-cover"
-                    />
+                    {visit.isRepeatLocation && (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+                        Repeat Visit
+                      </span>
+                    )}
                   </div>
-                )}
 
-                <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500 pt-1.5 border-t border-slate-100">
-                  <span>AI Score: <strong className="text-emerald-600">{visit.aiAnalysis.qualityScore}/100</strong></span>
-                  <span>{new Date(visit.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  <p className="font-bold text-slate-900 text-sm leading-snug">{visit.entityName || 'Entity'}</p>
+                  <p className="text-xs text-slate-600 mt-0.5">📍 {visit.village || visit.locationName || 'Field'}</p>
+                  <p className="text-[11px] text-emerald-700 font-medium mt-1">
+                    👤 {visit.employeeName || 'Officer'} ({visit.district || ''})
+                  </p>
+
+                  {visit.photoUrl && (
+                    <div className="mt-2 rounded-md overflow-hidden border border-slate-200 h-24 bg-slate-100">
+                      <img
+                        src={visit.photoUrl}
+                        alt={visit.entityName || 'Visit photo'}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+
+                  <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500 pt-1.5 border-t border-slate-100">
+                    <span>AI Score: <strong className="text-emerald-600">{aiScore}/100</strong></span>
+                    {timeStr && <span>{timeStr}</span>}
+                  </div>
                 </div>
-              </div>
-            </Popup>
-          </Marker>
-        ))}
+              </Popup>
+            </Marker>
+          );
+        })}
       </MapContainer>
 
       {/* Map Legend */}
