@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Visit } from '@/lib/types';
 import { Sparkles, MapPin, Clock, Search } from 'lucide-react';
+import { formatPhotoUrl, DEFAULT_FIELD_PHOTO } from '@/lib/geo';
 
 interface VisitFeedProps {
   visits: Visit[];
@@ -86,6 +87,7 @@ export const VisitFeed: React.FC<VisitFeedProps> = ({
             const ai = visit.aiAnalysis || { qualityScore: 80, isBlur: false };
             const isBlur = Boolean(ai.isBlur);
             const score = Number(ai.qualityScore || 80);
+            const photoSrc = formatPhotoUrl(visit.photoUrl);
 
             const timeStr = (() => {
               try {
@@ -177,24 +179,26 @@ export const VisitFeed: React.FC<VisitFeedProps> = ({
                   </div>
 
                   {/* Right Column: Thumbnail Photo */}
-                  {visit.photoUrl && (
-                    <div
-                      className="w-20 h-20 rounded-lg overflow-hidden border border-slate-200 bg-slate-100 shrink-0 relative group/img cursor-zoom-in"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onInspectPhoto(visit);
+                  <div
+                    className="w-20 h-20 rounded-lg overflow-hidden border border-slate-200 bg-slate-100 shrink-0 relative group/img cursor-zoom-in"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onInspectPhoto(visit);
+                    }}
+                  >
+                    <img
+                      src={photoSrc}
+                      alt="Visit photo"
+                      className="w-full h-full object-cover group-hover/img:scale-105 transition-transform"
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = DEFAULT_FIELD_PHOTO;
                       }}
-                    >
-                      <img
-                        src={visit.photoUrl}
-                        alt="Visit photo"
-                        className="w-full h-full object-cover group-hover/img:scale-105 transition-transform"
-                      />
-                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-medium">
-                        AI Inspect
-                      </div>
+                    />
+                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-medium">
+                      AI Inspect
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
             );

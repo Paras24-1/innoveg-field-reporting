@@ -3,6 +3,7 @@
 import React from 'react';
 import { Visit } from '@/lib/types';
 import { X, Sparkles, Check, AlertTriangle } from 'lucide-react';
+import { formatPhotoUrl, DEFAULT_FIELD_PHOTO } from '@/lib/geo';
 
 interface AiInspectionModalProps {
   visit: Visit | null;
@@ -29,6 +30,7 @@ export const AiInspectionModal: React.FC<AiInspectionModalProps> = ({ visit, onC
   const tags = Array.isArray(aiAnalysis.tags) ? aiAnalysis.tags : [];
   const lat = typeof visit.latitude === 'number' && !isNaN(visit.latitude) ? visit.latitude.toFixed(4) : '0.0000';
   const lng = typeof visit.longitude === 'number' && !isNaN(visit.longitude) ? visit.longitude.toFixed(4) : '0.0000';
+  const photoSrc = formatPhotoUrl(visit.photoUrl);
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
@@ -57,17 +59,15 @@ export const AiInspectionModal: React.FC<AiInspectionModalProps> = ({ visit, onC
           {/* Main Photo & Quality Score Header */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="rounded-xl overflow-hidden border border-slate-200 bg-slate-900 relative aspect-video sm:aspect-square">
-              {visit.photoUrl ? (
-                <img
-                  src={visit.photoUrl}
-                  alt="Field visit photo"
-                  className="w-full h-full object-contain"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs">
-                  No Photo Attached
-                </div>
-              )}
+              <img
+                src={photoSrc}
+                alt="Field visit photo"
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = DEFAULT_FIELD_PHOTO;
+                }}
+              />
               <div className="absolute bottom-2 left-2 bg-slate-900/80 backdrop-blur px-2.5 py-1 rounded text-[11px] text-white">
                 📍 {lat}, {lng}
               </div>

@@ -60,3 +60,23 @@ export function calculateTotalRouteKm(
   }
   return Number(totalKm.toFixed(1));
 }
+
+export const DEFAULT_FIELD_PHOTO = 'https://images.unsplash.com/photo-1592417817098-8f3d6eb22513?w=600&auto=format&fit=crop&q=80';
+
+/**
+ * Convert Google Drive and external media URLs into high-speed direct CDN links
+ */
+export function formatPhotoUrl(url?: string): string {
+  if (!url) return DEFAULT_FIELD_PHOTO;
+  const cleanUrl = url.trim().replace(/^=/, '');
+
+  // Convert Google Drive view/uc links to Google's direct public CDN
+  if (cleanUrl.includes('drive.google.com')) {
+    const match = cleanUrl.match(/id=([a-zA-Z0-9_-]+)/) || cleanUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+      return `https://lh3.googleusercontent.com/d/${match[1]}`;
+    }
+  }
+
+  return cleanUrl || DEFAULT_FIELD_PHOTO;
+}

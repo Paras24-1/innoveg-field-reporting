@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { Employee, Visit, DailySummary } from '@/lib/types';
+import { formatPhotoUrl, DEFAULT_FIELD_PHOTO } from '@/lib/geo';
 import { Navbar } from '@/components/Navbar';
 import { StatsOverview } from '@/components/StatsOverview';
 import { VisitFeed } from '@/components/VisitFeed';
@@ -294,17 +295,15 @@ export default function DashboardPage() {
                     className="rounded-xl border border-slate-200 overflow-hidden bg-slate-50 hover:shadow-md transition-all cursor-pointer group"
                   >
                     <div className="h-44 bg-slate-900 relative overflow-hidden">
-                      {v.photoUrl ? (
-                        <img
-                          src={v.photoUrl}
-                          alt={v.entityName || 'Visit photo'}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs">
-                          No Photo
-                        </div>
-                      )}
+                      <img
+                        src={formatPhotoUrl(v.photoUrl)}
+                        alt={v.entityName || 'Visit photo'}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = DEFAULT_FIELD_PHOTO;
+                        }}
+                      />
                       <div className="absolute top-2 right-2 bg-slate-900/80 backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold text-white flex items-center gap-1">
                         <Sparkles className="w-3 h-3 text-indigo-400" />
                         {aiScore}/100

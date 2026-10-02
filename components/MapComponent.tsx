@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { Visit } from '@/lib/types';
+import { formatPhotoUrl, DEFAULT_FIELD_PHOTO } from '@/lib/geo';
 
 // Custom SVG icon generator for Leaflet
 const createCustomIcon = (type: string, isRepeat: boolean) => {
@@ -154,15 +155,17 @@ export default function MapComponent({
                     👤 {visit.employeeName || 'Officer'} ({visit.district || ''})
                   </p>
 
-                  {visit.photoUrl && (
-                    <div className="mt-2 rounded-md overflow-hidden border border-slate-200 h-24 bg-slate-100">
-                      <img
-                        src={visit.photoUrl}
-                        alt={visit.entityName || 'Visit photo'}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
+                  <div className="mt-2 rounded-md overflow-hidden border border-slate-200 h-24 bg-slate-100">
+                    <img
+                      src={formatPhotoUrl(visit.photoUrl)}
+                      alt={visit.entityName || 'Visit photo'}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = DEFAULT_FIELD_PHOTO;
+                      }}
+                    />
+                  </div>
 
                   <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500 pt-1.5 border-t border-slate-100">
                     <span>AI Score: <strong className="text-emerald-600">{aiScore}/100</strong></span>
