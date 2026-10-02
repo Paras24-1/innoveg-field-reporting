@@ -1,10 +1,10 @@
 'use client';
 
 import React from 'react';
-import { Sprout, MessageSquare, BarChart3, Users, RefreshCw, FileText } from 'lucide-react';
+import { Sprout, Users, RefreshCw, FileText } from 'lucide-react';
 
 interface NavbarProps {
-
+  officerCount?: number;
   onOpenReport: () => void;
   onOpenEmployees: () => void;
   onRefresh: () => void;
@@ -12,7 +12,7 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
-
+  officerCount = 65,
   onOpenReport,
   onOpenEmployees,
   onRefresh,
@@ -52,13 +52,13 @@ export const Navbar: React.FC<NavbarProps> = ({
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-emerald-600' : ''}`} />
             </button>
 
-            {/* 60 Officers Master Directory */}
+            {/* Dynamic Officers Master Directory */}
             <button
               onClick={onOpenEmployees}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors border border-slate-200"
             >
               <Users className="w-4 h-4 text-slate-600" />
-              <span className="hidden sm:inline">60 Officers</span>
+              <span>{officerCount} Officers</span>
             </button>
 
             {/* 7 PM Daily Report */}
@@ -69,8 +69,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               <FileText className="w-4 h-4 text-emerald-600" />
               <span>7 PM Report</span>
             </button>
-
-
           </div>
         </div>
       </div>

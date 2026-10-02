@@ -72,7 +72,7 @@ export const EmployeeLeaderboard: React.FC<EmployeeLeaderboardProps> = ({
             <Trophy className="w-4 h-4 text-amber-500" />
             <span>Field Officers Leaderboard</span>
             <span className="px-2 py-0.5 text-xs font-semibold bg-emerald-100 text-emerald-800 rounded-full">
-              60 Officers
+              {employees.length} Officers
             </span>
           </h2>
           <p className="text-xs text-slate-500">Track Daily Target, Route KM, and Visit Performance</p>

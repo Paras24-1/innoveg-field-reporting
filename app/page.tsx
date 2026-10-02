@@ -106,7 +106,7 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-slate-50 flex flex-col pb-12">
       {/* Top Navigation */}
       <Navbar
-
+        officerCount={employees.length}
         onOpenReport={() => setIsReportModalOpen(true)}
         onOpenEmployees={() => setIsEmployeeModalOpen(true)}
         onRefresh={fetchData}
@@ -186,7 +186,7 @@ export default function DashboardPage() {
               }`}
             >
               <Trophy className="w-3.5 h-3.5" />
-              <span>60 Officers Leaderboard</span>
+              <span>{employees.length || 65} Officers Leaderboard</span>
             </button>
 
             <button
