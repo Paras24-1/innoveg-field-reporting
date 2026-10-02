@@ -56,23 +56,35 @@ class DatabaseStore {
     const newEmp: Employee = {
       id: emp.id || `emp-${Date.now()}`,
       empId: emp.empId || `INV-${Math.floor(100 + Math.random() * 900)}`,
-      name: emp.name,
+      name: String(emp.name || 'Field Officer').replace(/^=/, '').trim(),
       mobileNumber: emp.mobileNumber,
       designation: emp.designation || 'Field Officer',
-      district: emp.district,
-      territory: emp.territory || `${emp.district} General`,
+      district: String(emp.district || 'Betul').replace(/^=/, '').trim(),
+      territory: String(emp.territory || `${emp.district} General`).replace(/^=/, '').trim(),
       dailyVisitTarget: Number(emp.dailyVisitTarget) || 10,
       isActive: true,
     };
 
     try {
       if (process.env.DATABASE_URL) {
-        const created = await prisma.employee.create({ data: emp });
+        const created = await prisma.employee.create({
+          data: {
+            id: newEmp.id,
+            empId: newEmp.empId,
+            name: newEmp.name,
+            mobileNumber: newEmp.mobileNumber,
+            designation: newEmp.designation,
+            district: newEmp.district,
+            territory: newEmp.territory,
+            dailyVisitTarget: newEmp.dailyVisitTarget,
+            isActive: true,
+          }
+        });
         inMemoryEmployees.unshift(created as unknown as Employee);
         return created as unknown as Employee;
       }
     } catch (error) {
-      console.warn('Prisma addEmployee error, saving to in-memory store:', error);
+      console.warn('Prisma addEmployee error:', error);
     }
 
     inMemoryEmployees.unshift(newEmp);
@@ -105,38 +117,65 @@ class DatabaseStore {
   }
 
   async addVisit(visit: Visit): Promise<Visit> {
+    const lat = Number(visit.latitude);
+    const lng = Number(visit.longitude);
+    const safeLat = isNaN(lat) ? 21.7709 : lat;
+    const safeLng = isNaN(lng) ? 78.2575 : lng;
+
+    const safeVisit: Visit = {
+      ...visit,
+      visitType: String(visit.visitType || 'Farmer Visit').replace(/^=/, '').trim() as any,
+      entityName: String(visit.entityName || 'Entity').replace(/^=/, '').trim(),
+      village: String(visit.village || 'Field').replace(/^=/, '').trim(),
+      locationName: String(visit.locationName || 'Field Location').replace(/^=/, '').trim(),
+      remarksBooking: String(visit.remarksBooking || 'No specific remarks').replace(/^=/, '').trim(),
+      latitude: safeLat,
+      longitude: safeLng,
+    };
+
     try {
       if (process.env.DATABASE_URL) {
-        const aiAnalysis = visit.aiAnalysis;
+        const aiAnalysis = safeVisit.aiAnalysis || {
+          qualityScore: 80,
+          isBlur: false,
+          fieldVisible: true,
+          personVisible: true,
+          brandingVisible: false,
+          visitTypeMatch: true,
+          summaryHindi: '',
+          summaryEnglish: '',
+          tags: []
+        };
+
         const v = await prisma.visit.create({
           data: {
-            id: visit.id,
-            employeeId: visit.employeeId,
-            employeeName: visit.employeeName,
-            employeeMobile: visit.employeeMobile,
-            territory: visit.territory,
-            district: visit.district,
-            visitType: visit.visitType,
-            entityName: visit.entityName,
-            village: visit.village,
-            latitude: visit.latitude,
-            longitude: visit.longitude,
-            locationName: visit.locationName,
-            photoUrl: visit.photoUrl,
-            remarksBooking: visit.remarksBooking,
-            isRepeatLocation: visit.isRepeatLocation,
-            distanceFromPrevKm: visit.distanceFromPrevKm,
-            timestamp: visit.timestamp,
+            id: safeVisit.id,
+            employeeId: safeVisit.employeeId,
+            employeeName: safeVisit.employeeName,
+            employeeMobile: safeVisit.employeeMobile,
+            territory: safeVisit.territory,
+            district: safeVisit.district,
+            visitType: safeVisit.visitType,
+            entityName: safeVisit.entityName,
+            village: safeVisit.village,
+            latitude: safeLat,
+            longitude: safeLng,
+            locationName: safeVisit.locationName,
+            photoUrl: safeVisit.photoUrl || '',
+            remarksBooking: safeVisit.remarksBooking,
+            isRepeatLocation: Boolean(safeVisit.isRepeatLocation),
+            distanceFromPrevKm: Number(safeVisit.distanceFromPrevKm) || 0,
+            timestamp: safeVisit.timestamp || new Date().toISOString(),
             // AI embedded fields
-            aiQualityScore: aiAnalysis.qualityScore,
-            aiIsBlur: aiAnalysis.isBlur,
-            aiFieldVisible: aiAnalysis.fieldVisible,
-            aiPersonVisible: aiAnalysis.personVisible,
-            aiBrandingVisible: aiAnalysis.brandingVisible,
-            aiVisitTypeMatch: aiAnalysis.visitTypeMatch,
-            aiSummaryHindi: aiAnalysis.summaryHindi,
-            aiSummaryEnglish: aiAnalysis.summaryEnglish,
-            aiTags: JSON.stringify(aiAnalysis.tags),
+            aiQualityScore: Number(aiAnalysis.qualityScore) || 80,
+            aiIsBlur: Boolean(aiAnalysis.isBlur),
+            aiFieldVisible: Boolean(aiAnalysis.fieldVisible),
+            aiPersonVisible: Boolean(aiAnalysis.personVisible),
+            aiBrandingVisible: Boolean(aiAnalysis.brandingVisible),
+            aiVisitTypeMatch: Boolean(aiAnalysis.visitTypeMatch),
+            aiSummaryHindi: String(aiAnalysis.summaryHindi || ''),
+            aiSummaryEnglish: String(aiAnalysis.summaryEnglish || ''),
+            aiTags: JSON.stringify(Array.isArray(aiAnalysis.tags) ? aiAnalysis.tags : []),
           },
         });
         const mapped = this.mapPrismaVisit(v) as Visit;
@@ -144,11 +183,11 @@ class DatabaseStore {
         return mapped;
       }
     } catch (error) {
-      console.warn('Prisma addVisit error, saving to in-memory store:', error);
+      console.warn('Prisma addVisit error:', error);
     }
 
-    inMemoryVisits.unshift(visit);
-    return visit;
+    inMemoryVisits.unshift(safeVisit);
+    return safeVisit;
   }
 
   private mapPrismaVisit(v: any) {
