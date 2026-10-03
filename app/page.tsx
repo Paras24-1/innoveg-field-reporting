@@ -100,6 +100,22 @@ export default function DashboardPage() {
     }
   };
 
+  const handleUpdateEmployee = async (id: string, updates: Partial<Employee>) => {
+    try {
+      const res = await fetch('/api/employees', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...updates }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchData();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const selectedOfficer = employees.find((e) => e.id === selectedEmployeeId);
 
   return (
@@ -356,6 +372,7 @@ export default function DashboardPage() {
           employees={employees}
           onClose={() => setIsEmployeeModalOpen(false)}
           onAddEmployee={handleAddEmployee}
+          onUpdateEmployee={handleUpdateEmployee}
         />
       )}
 

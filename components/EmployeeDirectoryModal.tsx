@@ -1,19 +1,19 @@
-'use client';
-
 import React, { useState } from 'react';
 import { Employee } from '@/lib/types';
-import { X, Users, Search, Plus, Phone, MapPin, Target, Shield } from 'lucide-react';
+import { X, Users, Search, Plus, Phone, MapPin, Target, Shield, Pencil, Check, RotateCcw } from 'lucide-react';
 
 interface EmployeeDirectoryModalProps {
   employees: Employee[];
   onClose: () => void;
   onAddEmployee: (emp: Partial<Employee>) => void;
+  onUpdateEmployee?: (id: string, updates: Partial<Employee>) => void;
 }
 
 export const EmployeeDirectoryModal: React.FC<EmployeeDirectoryModalProps> = ({
   employees,
   onClose,
   onAddEmployee,
+  onUpdateEmployee,
 }) => {
   const [search, setSearch] = useState('');
   const [districtFilter, setDistrictFilter] = useState('ALL');
@@ -26,6 +26,17 @@ export const EmployeeDirectoryModal: React.FC<EmployeeDirectoryModalProps> = ({
   const [newTerritory, setNewTerritory] = useState('Multai');
   const [newDesignation, setNewDesignation] = useState('Field Officer');
   const [newTarget, setNewTarget] = useState(10);
+
+  // Edit Officer Form state
+  const [editingEmpId, setEditingEmpId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editEmpId, setEditEmpId] = useState('');
+  const [editMobile, setEditMobile] = useState('');
+  const [editDistrict, setEditDistrict] = useState('');
+  const [editTerritory, setEditTerritory] = useState('');
+  const [editDesignation, setEditDesignation] = useState('');
+  const [editTarget, setEditTarget] = useState(10);
+  const [editIsActive, setEditIsActive] = useState(true);
 
   const districts = ['ALL', ...Array.from(new Set(employees.map((e) => e.district)))];
 
@@ -56,6 +67,36 @@ export const EmployeeDirectoryModal: React.FC<EmployeeDirectoryModalProps> = ({
     setNewMobile('');
   };
 
+  const handleStartEdit = (emp: Employee) => {
+    setEditingEmpId(emp.id);
+    setEditName(emp.name);
+    setEditEmpId(emp.empId);
+    setEditMobile(emp.mobileNumber);
+    setEditDistrict(emp.district);
+    setEditTerritory(emp.territory);
+    setEditDesignation(emp.designation);
+    setEditTarget(emp.dailyVisitTarget);
+    setEditIsActive(emp.isActive !== false);
+  };
+
+  const handleSaveEdit = (id: string, e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editName || !editMobile) return;
+    if (onUpdateEmployee) {
+      onUpdateEmployee(id, {
+        name: editName,
+        empId: editEmpId,
+        mobileNumber: editMobile,
+        district: editDistrict,
+        territory: editTerritory,
+        designation: editDesignation,
+        dailyVisitTarget: Number(editTarget),
+        isActive: editIsActive,
+      });
+    }
+    setEditingEmpId(null);
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl max-w-4xl w-full overflow-hidden shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[85vh]">
@@ -66,7 +107,7 @@ export const EmployeeDirectoryModal: React.FC<EmployeeDirectoryModalProps> = ({
               <Users className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="font-bold text-slate-900 text-base">Employee Master Database (60 Officers)</h2>
+              <h2 className="font-bold text-slate-900 text-base">Employee Master Database ({employees.length} Officers)</h2>
               <p className="text-xs text-slate-500">Automated WhatsApp recognition database with Territory & Targets</p>
             </div>
           </div>
@@ -201,37 +242,173 @@ export const EmployeeDirectoryModal: React.FC<EmployeeDirectoryModalProps> = ({
 
         {/* Officers Grid */}
         <div className="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 overflow-y-auto flex-1">
-          {filtered.map((emp) => (
-            <div
-              key={emp.id}
-              className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300 transition-all text-xs"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-bold text-slate-900 text-sm">{emp.name}</h3>
-                  <p className="text-[11px] text-emerald-700 font-semibold">{emp.designation}</p>
-                </div>
-                <span className="font-mono text-[10px] bg-slate-200 px-1.5 py-0.5 rounded text-slate-700 font-bold">
-                  {emp.empId}
-                </span>
-              </div>
+          {filtered.map((emp) => {
+            const isEditing = editingEmpId === emp.id;
 
-              <div className="mt-2.5 space-y-1 text-slate-600 text-[11px]">
-                <div className="flex items-center gap-1.5">
-                  <Phone className="w-3 h-3 text-slate-400" />
-                  <span>+91 {emp.mobileNumber}</span>
+            if (isEditing) {
+              return (
+                <form
+                  key={emp.id}
+                  onSubmit={(e) => handleSaveEdit(emp.id, e)}
+                  className="p-3.5 rounded-xl border-2 border-emerald-500 bg-emerald-50/40 text-xs space-y-2 col-span-1 sm:col-span-2 md:col-span-1 shadow-md"
+                >
+                  <div className="flex items-center justify-between font-bold text-emerald-800">
+                    <span>Edit Officer</span>
+                    <span className="text-[10px] bg-emerald-200 text-emerald-900 px-1.5 py-0.5 rounded font-mono">
+                      {emp.id}
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-600 block">Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="w-full px-2 py-1 bg-white border border-slate-300 rounded font-bold text-slate-900"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] font-semibold text-slate-600 block">Emp ID</label>
+                      <input
+                        type="text"
+                        value={editEmpId}
+                        onChange={(e) => setEditEmpId(e.target.value)}
+                        className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold text-slate-600 block">Mobile No.</label>
+                      <input
+                        type="text"
+                        required
+                        value={editMobile}
+                        onChange={(e) => setEditMobile(e.target.value)}
+                        className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-slate-800 font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] font-semibold text-slate-600 block">District</label>
+                      <input
+                        type="text"
+                        required
+                        value={editDistrict}
+                        onChange={(e) => setEditDistrict(e.target.value)}
+                        className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold text-slate-600 block">Territory</label>
+                      <input
+                        type="text"
+                        required
+                        value={editTerritory}
+                        onChange={(e) => setEditTerritory(e.target.value)}
+                        className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-slate-800"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] font-semibold text-slate-600 block">Designation</label>
+                      <input
+                        type="text"
+                        value={editDesignation}
+                        onChange={(e) => setEditDesignation(e.target.value)}
+                        className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold text-slate-600 block">Daily Quota</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="30"
+                        value={editTarget}
+                        onChange={(e) => setEditTarget(Number(e.target.value))}
+                        className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-slate-800"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editIsActive}
+                        onChange={(e) => setEditIsActive(e.target.checked)}
+                        className="rounded text-emerald-600 focus:ring-emerald-500"
+                      />
+                      Active Officer
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setEditingEmpId(null)}
+                        className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded font-medium text-[11px]"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-[11px] shadow-sm flex items-center gap-1"
+                      >
+                        <Check className="w-3 h-3" /> Save
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              );
+            }
+
+            return (
+              <div
+                key={emp.id}
+                className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300 transition-all text-xs group relative"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-sm">{emp.name}</h3>
+                    <p className="text-[11px] text-emerald-700 font-semibold">{emp.designation}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => handleStartEdit(emp)}
+                      title="Edit Officer Details"
+                      className="p-1 rounded bg-slate-200/80 hover:bg-emerald-600 hover:text-white text-slate-600 transition-colors"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="font-mono text-[10px] bg-slate-200 px-1.5 py-0.5 rounded text-slate-700 font-bold">
+                      {emp.empId}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <MapPin className="w-3 h-3 text-slate-400" />
-                  <span>{emp.district} · {emp.territory}</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-slate-800 font-medium">
-                  <Target className="w-3 h-3 text-amber-500" />
-                  <span>Daily Quota: {emp.dailyVisitTarget} Visits / Day</span>
+
+                <div className="mt-2.5 space-y-1 text-slate-600 text-[11px]">
+                  <div className="flex items-center gap-1.5">
+                    <Phone className="w-3 h-3 text-slate-400" />
+                    <span>+91 {emp.mobileNumber}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <MapPin className="w-3 h-3 text-slate-400" />
+                    <span>{emp.district} · {emp.territory}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-slate-800 font-medium">
+                    <Target className="w-3 h-3 text-amber-500" />
+                    <span>Daily Quota: {emp.dailyVisitTarget} Visits / Day</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Footer */}

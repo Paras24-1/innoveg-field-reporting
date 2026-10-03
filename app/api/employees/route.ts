@@ -67,3 +67,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
+
+export async function PUT(request: Request) {
+  try {
+    const body = await request.json();
+    if (!body.id) {
+      return NextResponse.json(
+        { success: false, error: 'Employee ID (id) is required for update' },
+        { status: 400 }
+      );
+    }
+
+    const updatedEmp = await db.updateEmployee(body.id, body);
+    if (!updatedEmp) {
+      return NextResponse.json(
+        { success: false, error: `Employee with id ${body.id} not found` },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ success: true, employee: updatedEmp });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  }
+}

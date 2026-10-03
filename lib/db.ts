@@ -91,6 +91,46 @@ class DatabaseStore {
     return newEmp;
   }
 
+  async updateEmployee(id: string, updates: Partial<Employee>): Promise<Employee | null> {
+    const cleanUpdates: any = {};
+    if (updates.name !== undefined) cleanUpdates.name = String(updates.name).replace(/^=/, '').trim();
+    if (updates.empId !== undefined) cleanUpdates.empId = String(updates.empId).trim();
+    if (updates.mobileNumber !== undefined) {
+      const clean = String(updates.mobileNumber).replace(/[\s\-\+]/g, '');
+      cleanUpdates.mobileNumber = clean.length > 10 ? clean.slice(-10) : clean;
+    }
+    if (updates.designation !== undefined) cleanUpdates.designation = String(updates.designation).trim();
+    if (updates.district !== undefined) cleanUpdates.district = String(updates.district).replace(/^=/, '').trim();
+    if (updates.territory !== undefined) cleanUpdates.territory = String(updates.territory).replace(/^=/, '').trim();
+    if (updates.dailyVisitTarget !== undefined) cleanUpdates.dailyVisitTarget = Number(updates.dailyVisitTarget) || 10;
+    if (updates.isActive !== undefined) cleanUpdates.isActive = Boolean(updates.isActive);
+
+    try {
+      if (process.env.DATABASE_URL) {
+        const updated = await prisma.employee.update({
+          where: { id },
+          data: cleanUpdates,
+        });
+
+        // Also update in-memory cache if present
+        const idx = inMemoryEmployees.findIndex((e) => e.id === id);
+        if (idx !== -1) {
+          inMemoryEmployees[idx] = { ...inMemoryEmployees[idx], ...(updated as unknown as Employee) };
+        }
+        return updated as unknown as Employee;
+      }
+    } catch (error) {
+      console.warn('Prisma updateEmployee error:', error);
+    }
+
+    const idx = inMemoryEmployees.findIndex((e) => e.id === id);
+    if (idx !== -1) {
+      inMemoryEmployees[idx] = { ...inMemoryEmployees[idx], ...cleanUpdates };
+      return inMemoryEmployees[idx];
+    }
+    return null;
+  }
+
   // Visit Methods
   async getVisits(): Promise<Visit[]> {
     try {
